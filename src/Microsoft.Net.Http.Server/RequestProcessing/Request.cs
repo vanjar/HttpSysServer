@@ -61,6 +61,7 @@ namespace Microsoft.Net.Http.Server
 
         private X509Certificate _clientCert;
 
+        private RequestHeaders _headersImpl;
         private HeaderCollection _headers;
         private BoundaryType _contentBoundaryType;
         private long? _contentLength;
@@ -140,7 +141,8 @@ namespace Microsoft.Net.Http.Server
             }
 
             _httpMethod = UnsafeNclNativeMethods.HttpApi.GetVerb(RequestBuffer, OriginalBlobAddress);
-            _headers = new HeaderCollection(new RequestHeaders(_nativeRequestContext));
+            _headersImpl = new RequestHeaders(_nativeRequestContext);
+            _headers = new HeaderCollection(_headersImpl);
 
             UnsafeNclNativeMethods.HttpApi.HTTP_REQUEST_V2* requestV2 = (UnsafeNclNativeMethods.HttpApi.HTTP_REQUEST_V2*)memoryBlob.RequestBlob;
             _user = AuthenticationManager.GetUser(requestV2->pRequestInfo);
@@ -331,11 +333,7 @@ namespace Microsoft.Net.Http.Server
         {
             get
             {
-                if (_remoteEndPoint == null)
-                {
-                    _remoteEndPoint = UnsafeNclNativeMethods.HttpApi.GetRemoteEndPoint(RequestBuffer, OriginalBlobAddress);
-                }
-
+                PopulateRemoteEndpoint();
                 return _remoteEndPoint;
             }
         }
@@ -344,11 +342,7 @@ namespace Microsoft.Net.Http.Server
         {
             get
             {
-                if (_localEndPoint == null)
-                {
-                    _localEndPoint = UnsafeNclNativeMethods.HttpApi.GetLocalEndPoint(RequestBuffer, OriginalBlobAddress);
-                }
-
+                PopulateLocalEndpoint();
                 return _localEndPoint;
             }
         }
@@ -420,6 +414,11 @@ namespace Microsoft.Net.Http.Server
         internal ClaimsPrincipal User
         {
             get { return _user; }
+        }
+
+        internal bool IsUpgraded
+        {
+            get; private set;
         }
 
         internal UnsafeNclNativeMethods.HttpApi.HTTP_VERB GetKnownMethod()
@@ -506,11 +505,38 @@ namespace Microsoft.Net.Http.Server
             }
         }
 
+        internal void Upgrade()
+        {
+            // upgrade all pass-through fields so backing buffer can be freed
+            PopulateLocalEndpoint();
+            PopulateRemoteEndpoint();
+            _headersImpl.UpgradeHeader();
+            _nativeRequestContext.Dispose();
+            _nativeRequestContext = null;
+            IsUpgraded = true;
+        }
+
         internal void SwitchToOpaqueMode()
         {
             if (_nativeStream == null || _nativeStream == Stream.Null)
             {
                 _nativeStream = new RequestStream(RequestContext);
+            }
+        }
+
+        private void PopulateRemoteEndpoint()
+        {
+            if (_remoteEndPoint == null)
+            {
+                _remoteEndPoint = UnsafeNclNativeMethods.HttpApi.GetRemoteEndPoint(RequestBuffer, OriginalBlobAddress);
+            }
+        }
+
+        private void PopulateLocalEndpoint()
+        {
+            if (_localEndPoint == null)
+            {
+                _localEndPoint = UnsafeNclNativeMethods.HttpApi.GetLocalEndPoint(RequestBuffer, OriginalBlobAddress);
             }
         }
 

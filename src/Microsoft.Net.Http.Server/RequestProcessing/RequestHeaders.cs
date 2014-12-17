@@ -56,12 +56,7 @@ namespace Microsoft.Net.Http.Server
         {
             get
             {
-                if (_extra == null)
-                {
-                    var newDict = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-                    GetUnknownHeaders(newDict);
-                    Interlocked.CompareExchange(ref _extra, newDict, null);
-                }
+                PopulateExtra();
                 return _extra;
             }
         }
@@ -80,6 +75,68 @@ namespace Microsoft.Net.Http.Server
                     Extra[key] = value;
                 }
             }
+        }
+
+        private void PopulateExtra()
+        {
+            if (_extra == null)
+            {
+                var newDict = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+                GetUnknownHeaders(newDict);
+                Interlocked.CompareExchange(ref _extra, newDict, null);
+            }
+        }
+
+        // TODO: REMOVE ME!!
+        private void PopulateAllKnownHeaders()
+        {
+            var a = Accept;
+            var b = AcceptCharset;
+            var c = AcceptEncoding;
+            var d = AcceptLanguage;
+            var e = Allow;
+            var f = Authorization;
+            var g = CacheControl;
+            var h = Connection;
+            var i = ContentEncoding;
+            var j = ContentLanguage;
+            var k = ContentLength;
+            var l = ContentLocation;
+            var m = ContentMd5;
+            var n = ContentRange;
+            var o = ContentType;
+            var p = Cookie;
+            var q = Date;
+            var r = Expect;
+            var s = Expires;
+            var t = From;
+            var u = Host;
+            var v = IfMatch;
+            var w = IfModifiedSince;
+            var x = IfNoneMatch;
+            var y = IfRange;
+            var z = IfUnmodifiedSince;
+            var aa = KeepAlive;
+            var ab = LastModified;
+            var ac = MaxForwards;
+            var ad = Pragma;
+            var ae = ProxyAuthorization;
+            var af = Range;
+            var ag = Referer;
+            var ah = Te;
+            var ai = Trailer;
+            var aj = TransferEncoding;
+            var ak = Translate;
+            var al = Upgrade;
+            var am = UserAgent;
+            var an = Via;
+            var ao = Warning;
+        }
+
+        public void UpgradeHeader()
+        {
+            PopulateAllKnownHeaders();
+            PopulateExtra();
         }
 
         private string GetKnownHeader(HttpSysRequestHeader header)

@@ -337,7 +337,16 @@ namespace Microsoft.Net.Http.Server
             uint dataRead = 0;
             if (_dataChunkIndex != -1)
             {
-                dataRead = UnsafeNclNativeMethods.HttpApi.GetChunks(_requestContext.Request.RequestBuffer, _requestContext.Request.OriginalBlobAddress, ref _dataChunkIndex, ref _dataChunkOffset, buffer, offset, size);
+                var request = _requestContext.Request;
+                if (request.IsUpgraded)
+                {
+                    _dataChunkIndex = -1;
+                }
+                else
+                {
+                    dataRead = UnsafeNclNativeMethods.HttpApi.GetChunks(request.RequestBuffer, request.OriginalBlobAddress, ref _dataChunkIndex, ref _dataChunkOffset, buffer, offset, size);
+                }
+
                 if (_dataChunkIndex != -1 && dataRead == size)
                 {
                     UpdateAfterRead(UnsafeNclNativeMethods.ErrorCodes.ERROR_SUCCESS, dataRead);

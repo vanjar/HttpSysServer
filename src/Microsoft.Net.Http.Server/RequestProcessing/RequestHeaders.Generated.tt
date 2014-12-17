@@ -87,15 +87,7 @@ namespace Microsoft.Net.Http.Server
         {
             get
 			{
-			    if (!<#=IsRead(prop.Index)#>)
-				{
-					string nativeValue = GetKnownHeader(<#=prop.ID#>);
-					if (nativeValue != null)
-					{
-						_<#=prop.Name#> = new string[] { nativeValue };
-					}
-                    <#=MarkRead(prop.Index)#>;
-				}
+				Populate<#=prop.Name#>();
 			    return _<#=prop.Name#>;
 		    }
             set 
@@ -105,7 +97,27 @@ namespace Microsoft.Net.Http.Server
             }
         }
 
+		private void Populate<#=prop.Name#>()
+		{
+			if (!<#=IsRead(prop.Index)#>)
+			{
+				string nativeValue = GetKnownHeader(<#=prop.ID#>);
+				if (nativeValue != null)
+				{
+					_<#=prop.Name#> = new string[] { nativeValue };
+				}
+				<#=MarkRead(prop.Index)#>;
+			}
+		}
 <# } #>
+
+		private void PopulateAllKnownHeaders()
+		{
+<# foreach(var prop in props) { #>
+			Populate<#=prop.Name#>();
+<# } #>
+		}
+
         private bool PropertiesContainsKey(string key)
         {
             switch (key.Length)
