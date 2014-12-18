@@ -30,7 +30,9 @@ namespace Microsoft.Net.Http.Server
 {
     internal unsafe class NativeRequestContext : IDisposable
     {
-        private const int DefaultBufferSize = 4096;
+        private static readonly BufferPool s_bufferPool = new BufferPool();
+
+        internal const int DefaultBufferSize = 4096;
         private UnsafeNclNativeMethods.HttpApi.HTTP_REQUEST* _memoryBlob;
         private IntPtr _originalBlobAddress;
         private byte[] _backingBuffer;
@@ -127,7 +129,12 @@ namespace Microsoft.Net.Http.Server
                 _nativeOverlapped.Dispose();
             }
 
-            _backingBuffer = null;
+            if (_backingBuffer != null)
+            {
+                var buffer = _backingBuffer;
+                _backingBuffer = null;
+                s_bufferPool.Return(buffer);
+            }
         }
 
         private void SetBlob(UnsafeNclNativeMethods.HttpApi.HTTP_REQUEST* requestBlob)
@@ -150,6 +157,8 @@ namespace Microsoft.Net.Http.Server
         {
             if (_memoryBlob != null)
             {
+                _memoryBlob->ConnectionId = 0;
+                _memoryBlob->RequestId = 0;
                 GC.SuppressFinalize(this);
             }
             _memoryBlob = null;
@@ -157,7 +166,7 @@ namespace Microsoft.Net.Http.Server
 
         private void SetBuffer(int size)
         {
-            _backingBuffer = size == 0 ? null : new byte[size];
+            _backingBuffer = size == 0 ? null : s_bufferPool.Take(DefaultBufferSize);
         }
 
         private UnsafeNclNativeMethods.HttpApi.HTTP_REQUEST* Allocate(uint size)
