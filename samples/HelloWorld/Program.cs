@@ -13,7 +13,7 @@ namespace HelloWorld
         {
             Run(args).Wait();
         }
-        
+
         public static async Task Run(string[] args)
         {
             var settings = new WebListenerSettings();
@@ -27,23 +27,14 @@ namespace HelloWorld
                 while (true)
                 {
                     RequestContext context = await listener.AcceptAsync();
-                    Console.WriteLine("Accepted");
+
+                    Console.WriteLine(context.ToPrintable());
 
                     // Context:
                     // context.User;
                     // context.DisconnectToken
                     // context.Dispose()
                     // context.Abort();
-
-                    // Request
-                    // context.Request.ProtocolVersion
-                    // context.Request.Headers
-                    // context.Request.Method
-                    // context.Request.Body
-                    // Content-Length - long?
-                    // Content-Type - string
-                    // IsSecureConnection
-                    // HasEntityBody
 
                     // TODO: Request fields
                     // Content-Encoding - Encoding
@@ -67,7 +58,6 @@ namespace HelloWorld
 
                     if (context.IsWebSocketRequest)
                     {
-                        Console.WriteLine("WebSocket");
                         WebSocket webSocket = await context.AcceptWebSocketAsync();
                         await webSocket.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length), WebSocketMessageType.Text, true, CancellationToken.None);
                         await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Goodbye", CancellationToken.None);
@@ -75,7 +65,6 @@ namespace HelloWorld
                     }
                     else
                     {
-                        Console.WriteLine("Hello World");
                         context.Response.ContentLength = bytes.Length;
                         context.Response.ContentType = "text/plain";
 
