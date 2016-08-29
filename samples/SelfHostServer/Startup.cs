@@ -22,6 +22,7 @@ namespace SelfHostServer
                 options.ListenerSettings.Authentication.Schemes = AuthenticationSchemes.None;
                 options.ListenerSettings.Authentication.AllowAnonymous = true;
             });
+
         }
 
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerfactory)
@@ -41,7 +42,7 @@ namespace SelfHostServer
                 else
                 {
                     context.Response.ContentType = "text/plain";
-                    await context.Response.WriteAsync("Hello world from " + context.Request.Host + " at " + DateTime.Now);
+                    await context.Response.WriteAsync(context.GetDigest());
                 }
             });
         }
