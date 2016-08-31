@@ -10,7 +10,6 @@
     "web": "SelfHostServer"
   },
   "frameworks": {
-    "net451": {},
     "netcoreapp1.0": {
       "dependencies": {
         "Microsoft.NETCore.App": {
