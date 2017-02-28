@@ -90,7 +90,7 @@ namespace Microsoft.AspNetCore.Server.HttpSys
             {
                 foreach (var value in _serverAddresses.Addresses)
                 {
-                    Listener.Options.UrlPrefixes.Add(UrlPrefix.Create(value));
+                    Listener.Options.UrlPrefixes.Add(value);
                 }
             }
             else
@@ -98,7 +98,7 @@ namespace Microsoft.AspNetCore.Server.HttpSys
                 LogHelper.LogDebug(_logger, $"No listening endpoints were configured. Binding to {Constants.DefaultServerAddress} by default.");
 
                 _serverAddresses.Addresses.Add(Constants.DefaultServerAddress);
-                Listener.Options.UrlPrefixes.Add(UrlPrefix.Create(Constants.DefaultServerAddress));
+                Listener.Options.UrlPrefixes.Add(Constants.DefaultServerAddress);
             }
 
             // Can't call Start twice
@@ -107,11 +107,6 @@ namespace Microsoft.AspNetCore.Server.HttpSys
             Contract.Assert(application != null);
 
             _application = new ApplicationWrapper<TContext>(application);
-
-            if (Listener.Options.UrlPrefixes.Count == 0)
-            {
-                throw new InvalidOperationException("No address prefixes were defined.");
-            }
 
             Listener.Start();
 
