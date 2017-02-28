@@ -71,33 +71,34 @@ namespace Microsoft.AspNetCore.Server.HttpSys
 
             var serverAdressesPresent = _serverAddresses.Addresses.Count > 0;
 
-            if (_options.ServerAddresses?.Count > 0)
+            if (_options.UrlPrefixes.Count > 0)
             {
                 if (serverAdressesPresent)
                 {
                     LogHelper.LogWarning(_logger, $"Overriding address(es) '{string.Join(", ", _serverAddresses.Addresses)}'. " +
-                        $"Binding to endpoints defined in {nameof(WebHostBuilderHttpSysExtensions.UseHttpSys)}() instead.");
+                        $"Binding to endpoints added to {nameof(HttpSysOptions.UrlPrefixes)} instead.");
 
                     _serverAddresses.Addresses.Clear();
 
-                    foreach (var address in _options.ServerAddresses)
+                    foreach (var prefix in _options.UrlPrefixes)
                     {
-                        _serverAddresses.Addresses.Add(address);
+                        _serverAddresses.Addresses.Add(prefix.FullPrefix);
                     }
                 }
-
-                ParseAddresses(_options.ServerAddresses, Listener);
             }
             else if (serverAdressesPresent)
             {
-                ParseAddresses(_serverAddresses.Addresses, Listener);
+                foreach (var value in _serverAddresses.Addresses)
+                {
+                    Listener.Options.UrlPrefixes.Add(UrlPrefix.Create(value));
+                }
             }
             else
             {
                 LogHelper.LogDebug(_logger, $"No listening endpoints were configured. Binding to {Constants.DefaultServerAddress} by default.");
 
                 _serverAddresses.Addresses.Add(Constants.DefaultServerAddress);
-                ParseAddress(Constants.DefaultServerAddress, Listener);
+                Listener.Options.UrlPrefixes.Add(UrlPrefix.Create(Constants.DefaultServerAddress));
             }
 
             // Can't call Start twice
@@ -231,16 +232,6 @@ namespace Microsoft.AspNetCore.Server.HttpSys
             context.Response.StatusCode = status;
             context.Response.ContentLength = 0;
             context.Dispose();
-        }
-
-        private void ParseAddress(string address, HttpSysListener listener) => listener.Options.UrlPrefixes.Add(UrlPrefix.Create(address));
-
-        private void ParseAddresses(ICollection<string> addresses, HttpSysListener listener)
-        {
-            foreach (var value in addresses)
-            {
-                listener.Options.UrlPrefixes.Add(UrlPrefix.Create(value));
-            }
         }
 
         public void Dispose()
