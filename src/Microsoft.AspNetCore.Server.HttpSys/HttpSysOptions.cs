@@ -2,8 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using System.Collections.Generic;
 
 namespace Microsoft.AspNetCore.Server.HttpSys
 {
@@ -86,6 +85,21 @@ namespace Microsoft.AspNetCore.Server.HttpSys
         /// New requests will receive a 503 response in this time period. The default is 5 seconds.
         /// </summary>
         public TimeSpan ShutdownTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
+        internal List<string> ServerAddresses { get; private set; }
+
+        /// <summary>
+        /// Bind to given IP addresses and ports.
+        /// </summary>
+        public void Listen(params string[] addresses)
+        {
+            if (ServerAddresses == null)
+            {
+                ServerAddresses = new List<string>();
+            }
+
+            ServerAddresses.AddRange(addresses);
+        }
 
         internal void SetRequestQueueLimit(RequestQueue requestQueue)
         {

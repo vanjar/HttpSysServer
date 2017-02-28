@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
@@ -16,8 +17,8 @@ namespace Microsoft.AspNetCore.Server.HttpSys
 {
     internal class MessagePump : IServer
     {
-        private readonly HttpSysListener _listener;
         private readonly ILogger _logger;
+        private readonly HttpSysOptions _options;
 
         private IHttpApplication<object> _application;
 
@@ -42,23 +43,20 @@ namespace Microsoft.AspNetCore.Server.HttpSys
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
 
-            var optionsInstance = options.Value;
-            _listener = new HttpSysListener(optionsInstance, loggerFactory);
+            _options = options.Value;
+            Listener = new HttpSysListener(_options, loggerFactory);
             _logger = LogHelper.CreateLogger(loggerFactory, typeof(MessagePump));
             Features = new FeatureCollection();
             _serverAddresses = new ServerAddressesFeature();
             Features.Set<IServerAddressesFeature>(_serverAddresses);
 
             _processRequest = new Action<object>(ProcessRequestAsync);
-            _maxAccepts = optionsInstance.MaxAccepts;
-            EnableResponseCaching = optionsInstance.EnableResponseCaching;
+            _maxAccepts = _options.MaxAccepts;
+            EnableResponseCaching = _options.EnableResponseCaching;
             _shutdownSignal = new ManualResetEvent(false);
         }
 
-        internal HttpSysListener Listener
-        {
-            get { return _listener; }
-        }
+        internal HttpSysListener Listener { get; }
 
         internal bool EnableResponseCaching { get; set; }
 
@@ -71,7 +69,36 @@ namespace Microsoft.AspNetCore.Server.HttpSys
                 throw new ArgumentNullException(nameof(application));
             }
 
-            ParseAddresses(_serverAddresses.Addresses, Listener);
+            var serverAdressesPresent = _serverAddresses.Addresses.Count > 0;
+
+            if (_options.ServerAddresses?.Count > 0)
+            {
+                if (serverAdressesPresent)
+                {
+                    LogHelper.LogWarning(_logger, $"Overriding address(es) '{string.Join(", ", _serverAddresses.Addresses)}'. " +
+                        $"Binding to endpoints defined in {nameof(WebHostBuilderHttpSysExtensions.UseHttpSys)}() instead.");
+
+                    _serverAddresses.Addresses.Clear();
+
+                    foreach (var address in _options.ServerAddresses)
+                    {
+                        _serverAddresses.Addresses.Add(address);
+                    }
+                }
+
+                ParseAddresses(_options.ServerAddresses, Listener);
+            }
+            else if (serverAdressesPresent)
+            {
+                ParseAddresses(_serverAddresses.Addresses, Listener);
+            }
+            else
+            {
+                LogHelper.LogDebug(_logger, $"No listening endpoints were configured. Binding to {Constants.DefaultServerAddress} by default.");
+
+                _serverAddresses.Addresses.Add(Constants.DefaultServerAddress);
+                ParseAddress(Constants.DefaultServerAddress, Listener);
+            }
 
             // Can't call Start twice
             Contract.Assert(_application == null);
@@ -80,12 +107,12 @@ namespace Microsoft.AspNetCore.Server.HttpSys
 
             _application = new ApplicationWrapper<TContext>(application);
 
-            if (_listener.Options.UrlPrefixes.Count == 0)
+            if (Listener.Options.UrlPrefixes.Count == 0)
             {
                 throw new InvalidOperationException("No address prefixes were defined.");
             }
 
-            _listener.Start();
+            Listener.Start();
 
             ActivateRequestProcessingLimits();
         }
@@ -111,7 +138,7 @@ namespace Microsoft.AspNetCore.Server.HttpSys
                 RequestContext requestContext;
                 try
                 {
-                    requestContext = await _listener.AcceptAsync().SupressContext();
+                    requestContext = await Listener.AcceptAsync().SupressContext();
                 }
                 catch (Exception exception)
                 {
@@ -206,6 +233,8 @@ namespace Microsoft.AspNetCore.Server.HttpSys
             context.Dispose();
         }
 
+        private void ParseAddress(string address, HttpSysListener listener) => listener.Options.UrlPrefixes.Add(UrlPrefix.Create(address));
+
         private void ParseAddresses(ICollection<string> addresses, HttpSysListener listener)
         {
             foreach (var value in addresses)
@@ -232,7 +261,7 @@ namespace Microsoft.AspNetCore.Server.HttpSys
                 }
             }
             // All requests are finished
-            _listener.Dispose();
+            Listener.Dispose();
         }
 
         private class ApplicationWrapper<TContext> : IHttpApplication<object>
