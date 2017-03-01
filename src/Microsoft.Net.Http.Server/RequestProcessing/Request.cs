@@ -307,6 +307,7 @@ namespace Microsoft.Net.Http.Server
             {
                 _nativeStream.Dispose();
             }
+            (User?.Identity as IDisposable)?.Dispose();
         }
 
         private void CheckDisposed()
