@@ -82,6 +82,7 @@ namespace Microsoft.Net.Http.Server
         internal void ReleasePins()
         {
             Debug.Assert(_nativeRequest != null || _backingBuffer == null, "RequestContextBase::ReleasePins()|ReleasePins() called twice.");
+            ReleaseAccessTokens();
             _originalBufferAddress = (IntPtr)_nativeRequest;
             _nativeRequest = null;
             _nativeOverlapped?.Dispose();
@@ -94,6 +95,22 @@ namespace Microsoft.Net.Http.Server
             _nativeOverlapped?.Dispose();
         }
 
+        private void ReleaseAccessTokens()
+        {
+            var requestInfo = NativeRequestV2->pRequestInfo;
+            var infoCount = NativeRequestV2->RequestInfoCount;
+            for (int i = 0; i < infoCount; i++)
+            {
+                var info = &requestInfo[i];
+                if (info->pInfo != null)
+                {
+                    var accessToken = info->pInfo->AccessToken;
+                    if (accessToken != IntPtr.Zero)
+                        UnsafeNclNativeMethods.SafeNetHandles.CloseHandle(accessToken);
+                }
+            }
+        }
+        
         private void SetBuffer(int size)
         {
             Debug.Assert(size != 0, "unexpected size");
